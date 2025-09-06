@@ -1,0 +1,9 @@
+# Vendor profiles allow overriding parsing rules or OCR settings.
+# Example structure:
+# VENDOR_NAME:
+#   line_regex: '^(?:x?\s*(\d+(?:\.\d+)?)\s+)?([A-Za-z0-9\-\s]+?)\s+(\d+\.\d{2})\s*$'
+#   psm: 6
+#   oem: 3
+#   ignore_lines:
+#     - 'THANK YOU'
+#   allow_missing_total: false
