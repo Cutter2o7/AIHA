@@ -10,6 +10,7 @@ example:
 """
 from __future__ import annotations
 
+import importlib.util
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,6 +22,14 @@ LO_PROGRAM_PATH = r"C:\Program Files\LibreOffice\program"
 
 if LO_PROGRAM_PATH not in sys.path:
     sys.path.insert(0, LO_PROGRAM_PATH)
+
+if importlib.util.find_spec("uno") is None:
+    raise ImportError(
+        "The LibreOffice UNO runtime is missing. Install LibreOffice with the "
+        "Python/UNO bindings (e.g., `sudo apt install libreoffice python3-uno` on "
+        "Linux) and run this script with that Python installation instead of the "
+        "PyPI `uno` package."
+    )
 
 import uno
 import unohelper

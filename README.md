@@ -65,3 +65,15 @@ python main.py --input data/input --output data/output/receipts.xlsx \
 ---
 
 Receipts are written to Excel with totals reconciled; mismatches are flagged with status `REVIEW`.
+
+## 📝 LibreOffice table filler
+
+`libreoffice_table_fill.py` talks to LibreOffice over UNO. The UNO runtime is not
+available from PyPI; install LibreOffice with its Python bindings and run the
+script with that interpreter (e.g., `sudo apt install libreoffice python3-uno`
+on Linux, or the Python executable in `LibreOffice\program\python.exe` on
+Windows). Launch LibreOffice in listening mode first:
+
+```
+soffice --headless --accept="socket,host=localhost,port=2002;urp;"
+```
