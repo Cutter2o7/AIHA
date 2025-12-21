@@ -14,6 +14,13 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Sequence
+import sys
+import os
+
+LO_PROGRAM_PATH = r"C:\Program Files\LibreOffice\program"
+
+if LO_PROGRAM_PATH not in sys.path:
+    sys.path.insert(0, LO_PROGRAM_PATH)
 
 import uno
 import unohelper
