@@ -1,8 +1,8 @@
-"""Populate a Writer table with rows extracted from a Calc workbook via LibreOffice.
+"""Extract and display address rows from a Calc workbook via LibreOffice.
 
-This script uses a UNO connection to LibreOffice to open a hard-coded XLSX file,
-transform selected rows, and write formatted text into the first table of a
-hard-coded Writer document. LibreOffice must be running in listening mode, for
+This script uses a UNO connection to LibreOffice to open a hard-coded XLSX
+file, transform selected rows, and print the normalized addresses so they can
+be copied elsewhere. LibreOffice must be running in listening mode, for
 example:
 
     soffice --headless --accept="socket,host=localhost,port=2002;urp;"
@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Sequence
+from typing import Iterable, List
 import sys
 import os
 
@@ -25,11 +25,9 @@ if LO_PROGRAM_PATH not in sys.path:
 import uno
 import unohelper
 from com.sun.star.beans import PropertyValue
-from com.sun.star.text import XTextTable
 
-# Hard-coded paths to the source spreadsheet and target document
+# Hard-coded path to the source spreadsheet
 CALC_PATH = Path("data/source.xlsx")
-DOC_PATH = Path("data/target.doc")
 
 
 @dataclass
@@ -155,38 +153,10 @@ def extract_entries(calc_document) -> List[AddressEntry]:
     return entries
 
 
-def _table_dimensions(table: XTextTable) -> tuple[int, int]:
-    rows = table.Rows.getCount()
-    cols = table.Columns.getCount()
-    return rows, cols
+def _format_entries(entries: Iterable[AddressEntry]) -> str:
+    """Combine formatted address blocks for easy copying."""
 
-
-def _cell_name(col_index: int, row_index: int) -> str:
-    return f"{chr(ord('A') + col_index)}{row_index + 1}"
-
-
-def populate_table(writer_document, entries: Sequence[AddressEntry]) -> None:
-    tables = writer_document.getTextTables()
-    table_names = tables.getElementNames()
-    if not table_names:
-        raise RuntimeError("No tables found in the Writer document.")
-
-    table = tables.getByName(table_names[0])
-    rows, cols = _table_dimensions(table)
-
-    col = 0
-    row = 0
-    for entry in entries:
-        if col >= cols:
-            break
-        cell_name = _cell_name(col, row)
-        table.getCellByName(cell_name).setString(entry.formatted_text)
-        row += 1
-        if row >= rows:
-            row = 0
-            col += 1
-
-    writer_document.store()
+    return "\n\n".join(entry.formatted_text for entry in entries)
 
 
 def main() -> None:
@@ -196,9 +166,7 @@ def main() -> None:
     entries = extract_entries(calc_document)
     calc_document.close(True)
 
-    writer_document = _load_component(component_context, DOC_PATH)
-    populate_table(writer_document, entries)
-    writer_document.close(True)
+    print(_format_entries(entries))
 
 
 if __name__ == "__main__":
