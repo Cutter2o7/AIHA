@@ -1,12 +1,9 @@
-"""Extract and display address rows from a Calc workbook via LibreOffice.
+"""Extract and display address rows from a spreadsheet file.
 
-This script uses a UNO connection to LibreOffice to open a hard-coded XLSX
-file, transform selected rows, and print the normalized addresses so they can
-be copied elsewhere. LibreOffice must be running in listening mode, for
-example:
-
-    soffice --headless --accept="socket,host=localhost,port=2002;urp;"
-
+This version reads the workbook directly with :mod:`openpyxl`, avoiding the
+LibreOffice UNO bridge so it can run in a standard Python environment. The
+input file location is still hard-coded, but the parsing logic remains the
+same.
 """
 from __future__ import annotations
 
@@ -14,17 +11,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List
-import sys
-import os
-
-LO_PROGRAM_PATH = r"C:\Program Files\LibreOffice\program"
-
-if LO_PROGRAM_PATH not in sys.path:
-    sys.path.insert(0, LO_PROGRAM_PATH)
-
-import uno
-import unohelper
-from com.sun.star.beans import PropertyValue
+from openpyxl import load_workbook
 
 # Hard-coded path to the source spreadsheet
 CALC_PATH = Path("data/source.xlsx")
@@ -55,29 +42,12 @@ class AddressEntry:
         return "\n".join(lines)
 
 
-def _to_file_url(path: Path) -> str:
-    return unohelper.systemPathToFileUrl(str(path.resolve()))
+def _safe_cell_value(value) -> str:
+    """Normalize workbook cell values into stripped strings."""
 
-
-def _connect_to_office():
-    local_ctx = uno.getComponentContext()
-    resolver = local_ctx.ServiceManager.createInstanceWithContext(
-        "com.sun.star.bridge.UnoUrlResolver", local_ctx
-    )
-    context = resolver.resolve(
-        "uno:socket,host=localhost,port=2002;urp;StarOffice.ComponentContext"
-    )
-    return context
-
-
-def _load_component(component_context, path: Path):
-    desktop = component_context.ServiceManager.createInstanceWithContext(
-        "com.sun.star.frame.Desktop", component_context
-    )
-    properties = (
-        PropertyValue("Hidden", 0, True, 0),
-    )
-    return desktop.loadComponentFromURL(_to_file_url(path), "_blank", 0, properties)
+    if value is None:
+        return ""
+    return str(value).strip()
 
 
 def _normalize_family_info(raw: str, family_name: str) -> str:
@@ -111,16 +81,19 @@ def _parse_address_parts(column_c: str) -> tuple[str, str, str]:
     return address_line_1, address_apt_line, address_final_line
 
 
-def extract_entries(calc_document) -> List[AddressEntry]:
-    sheet = calc_document.Sheets.getByIndex(0)
+def _load_first_worksheet(path: Path):
+    workbook = load_workbook(path, data_only=True)
+    return workbook.worksheets[0]
+
+
+def extract_entries(worksheet) -> List[AddressEntry]:
     entries: List[AddressEntry] = []
     empty_rows = 0
 
-    max_rows = sheet.Rows.getCount()
-    for row in range(max_rows):
-        col_a = sheet.getCellByPosition(0, row).getString().strip()
-        col_b = sheet.getCellByPosition(1, row).getString().strip()
-        col_c = sheet.getCellByPosition(2, row).getString().strip()
+    for row in worksheet.iter_rows(values_only=True):
+        col_a = _safe_cell_value(row[0]) if len(row) > 0 else ""
+        col_b = _safe_cell_value(row[1]) if len(row) > 1 else ""
+        col_c = _safe_cell_value(row[2]) if len(row) > 2 else ""
 
         if not col_a and not col_b and not col_c:
             empty_rows += 1
@@ -160,11 +133,8 @@ def _format_entries(entries: Iterable[AddressEntry]) -> str:
 
 
 def main() -> None:
-    component_context = _connect_to_office()
-
-    calc_document = _load_component(component_context, CALC_PATH)
-    entries = extract_entries(calc_document)
-    calc_document.close(True)
+    worksheet = _load_first_worksheet(CALC_PATH)
+    entries = extract_entries(worksheet)
 
     print(_format_entries(entries))
 
