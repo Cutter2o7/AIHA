@@ -30,7 +30,10 @@ class AddressEntry:
     @property
     def formatted_text(self) -> str:
         lines: List[str] = []
-        header = f"{self.family_info} {self.family_name}".strip()
+        if self.family_info.lower() == "family" and self.family_name:
+            header = f"{self.family_name} {self.family_info}".strip()
+        else:
+            header = f"{self.family_info} {self.family_name}".strip()
         if header:
             lines.append(header)
         if self.address_line_1:
